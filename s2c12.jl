@@ -21,8 +21,7 @@ text_to_decrypt = base64decode(
     YnkK")
 
 function breakable_encryption(input_bytes)
-    append!(input_bytes, text_to_decrypt)
-    return encrypt(enc, pad(input_bytes))
+    return encrypt(enc, pad([input_bytes; text_to_decrypt]))
 end
 
 # find the block size that "breakable_encryption" is using
@@ -52,17 +51,28 @@ oracle(breakable_encryption(UInt8[0x00 for n in 1:32]))
 
 # returns "ECB"
 
-
-
-crafted_input = UInt8[0x60 for n in 1:15]
-
-target_output = breakable_encryption(crafted_input)
-
 decoded_secret = UInt8[]
 
-for i in 1:255
-    attempt = breakable_encryption(vcat(crafted_input, i))
-    if attempt[1:16] == target_output[1:16]
-        append!(decoded_secret, i)
+secret_message_blocks = length(breakable_encryption(UInt8[])) ÷ 16
+
+for block = 1:secret_message_blocks
+    crafted_input = [UInt8[0x60 for n in 1:15]; decoded_secret]
+    for within_block_pos = 1:16
+        target = UInt8[0x60 for n in 1:(16 - within_block_pos)]
+
+        target_output = breakable_encryption(target)
+
+        for i in 0x00:0xff
+            attempt = breakable_encryption([crafted_input; i])
+            offset = (block - 1) * 16
+            if attempt[(offset + 1):(offset + 16)] == target_output[(offset + 1):(offset + 16)]
+                append!(decoded_secret, i)
+            end
+        end
+
+        popfirst!(crafted_input)
+        append!(crafted_input, last(decoded_secret))
     end
 end
+
+print(String(decoded_secret))
