@@ -86,5 +86,24 @@ end
 
 encrypt_string()
 
-check_valid_padding(ciphertext, IV)
-    
+function check_valid_padding(ciphertext)
+    to_remove = Int(last(ciphertext))
+    valid = true
+    if to_remove > 16
+        return false
+    end
+    for i in 1:to_remove
+        if ciphertext[length(ciphertext) + 1 - i] != ciphertext[length(ciphertext)]
+            valid = false
+        end
+    end
+    return valid
+end
+
+ciphertext, iv = encrypt_string()
+
+check_valid_padding(cbc_decrypt(ciphertext, iv))
+
+# ...
+# aaaaaaaaaaaaaaaA | change byte A until padding is valid
+# aaaaaaaaaaaaaaaa |
